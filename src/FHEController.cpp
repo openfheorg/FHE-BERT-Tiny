@@ -21,18 +21,16 @@ void FHEController::generate_context(bool serialize, bool secure) {
 
     ScalingTechnique rescaleTech = FLEXIBLEAUTO;
 
-    int dcrtBits               = 52;
-    int firstMod               = 55;
+    int dcrtBits               = 53;
+    int firstMod               = 60;
 
     parameters.SetScalingModSize(dcrtBits);
     parameters.SetScalingTechnique(rescaleTech);
     parameters.SetFirstModSize(firstMod);
 
-    uint32_t approxBootstrapDepth = 4 + 4;
-
     uint32_t levelsUsedBeforeBootstrap = 12;
 
-    circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(approxBootstrapDepth, level_budget, SPARSE_TERNARY);
+    circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(level_budget, SPARSE_TERNARY);
 
     cout << endl << "Ciphertexts depth: " << circuit_depth << ", available multiplications: " << levelsUsedBeforeBootstrap - 2 << endl;
 
@@ -238,6 +236,10 @@ void FHEController::load_context(bool verbose) {
     num_slots = 1 << 14;
 }
 
+void FHEController::print_crypto_context_data() {
+    std::cout << "CKKS scheme is using ring dimension " << context->GetRingDimension() << std::endl << std::endl;
+    std::cout << "crypto params: " << *context->GetCryptoParameters() << std::endl;
+}
 
 void FHEController::generate_bootstrapping_keys(int bootstrap_slots) {
     context->EvalBootstrapSetup(level_budget, {0, 0}, bootstrap_slots);
@@ -415,7 +417,7 @@ Ctxt FHEController::add(const Ctxt &c1, const Ctxt &c2) {
     return context->EvalAdd(c1, c2);
 }
 
-Ctxt FHEController::add(const Ctxt &c1, const Ptxt &c2) {
+Ctxt FHEController::add(const Ctxt &c1, Ptxt c2) {
     return context->EvalAdd(c1, c2);
 }
 
@@ -867,7 +869,7 @@ Ctxt FHEController::repeat(const Ctxt &in, int slots, int padding) {
     return res;
 }
 
-vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, const Ptxt &bias) {
+vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, Ptxt bias) {
     vector<Ctxt> columns;
 
     for (int i = 0; i < rows.size(); i++) {
@@ -883,7 +885,7 @@ vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, cons
     return columns;
 }
 
-vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, const Ptxt &bias, int row_size, int padding) {
+vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, Ptxt bias, int row_size, int padding) {
     vector<Ctxt> columns;
 
     for (int i = 0; i < rows.size(); i++) {
@@ -913,7 +915,7 @@ vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ctxt &weight, int 
     return columns;
 }
 
-vector<Ctxt> FHEController::matmulRElarge(vector<Ctxt>& inputs, const vector<Ptxt> &weights, const Ptxt &bias, double mask_val) {
+vector<Ctxt> FHEController::matmulRElarge(vector<Ctxt>& inputs, const vector<Ptxt> &weights, Ptxt bias, double mask_val) {
     vector<Ctxt> densed;
 
     for (int i = 0; i < inputs.size(); i++) {
@@ -958,7 +960,7 @@ vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ctxt& matrix) {
     return columns;
 }
 
-vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ptxt& weight, const Ptxt& bias) {
+vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ptxt& weight, Ptxt bias) {
     vector<Ctxt> columns;
 
     for (int i = 0; i < rows.size(); i++) {
@@ -974,7 +976,7 @@ vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ptxt& weight, cons
     return columns;
 }
 
-vector<Ctxt> FHEController::matmulCRlarge(vector<vector<Ctxt>> rows, vector<Ptxt> weights, const Ptxt &bias) {
+vector<Ctxt> FHEController::matmulCRlarge(vector<vector<Ctxt>> rows, vector<Ptxt> weights, Ptxt bias) {
     vector<Ctxt> output;
 
     for (int i = 0; i < rows.size(); i++) {
@@ -1126,7 +1128,7 @@ vector<Ctxt> FHEController::unwrap_512_in_4_128(const Ctxt &c, int index) {
     return result;
 }
 
-vector<Ctxt> FHEController::generate_containers(vector<Ctxt> inputs, const Ptxt& bias) {
+vector<Ctxt> FHEController::generate_containers(vector<Ctxt> inputs, Ptxt bias) {
     vector<Ctxt> containers;
     vector<int> quantities;
 

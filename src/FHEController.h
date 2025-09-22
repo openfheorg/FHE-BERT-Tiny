@@ -39,6 +39,7 @@ public:
     void generate_context(int log_ring, int log_scale, int log_primes, int digits_hks, int cts_levels, int stc_levels, int relu_deg, bool serialize = false);
     void load_context(bool verbose = true);
     void test_context();
+    void print_crypto_context_data();
 
     /*
      * Generating bootstrapping and rotation keys stuff
@@ -72,7 +73,7 @@ public:
      * Homomorphic operations
      */
     Ctxt add(const Ctxt& c1, const Ctxt& c2);
-    Ctxt add(const Ctxt& c1, const Ptxt& c2);
+    Ctxt add(const Ctxt& c1, Ptxt c2);
     Ctxt add(vector<Ctxt> c);
     Ctxt mult(const Ctxt& c1, const Ctxt& c2);
     Ctxt mult(const Ctxt& c, double d);
@@ -109,13 +110,13 @@ public:
     Ctxt repeat(const Ctxt &in, int slots);
     Ctxt repeat(const Ctxt &in, int slots, int padding);
 
-    vector<Ctxt> matmulRE(vector<Ctxt> rows, const Ptxt& weight, const Ptxt& bias );
-    vector<Ctxt> matmulRE(vector<Ctxt> rows, const Ptxt& weight, const Ptxt& bias, int row_size, int padding );
+    vector<Ctxt> matmulRE(vector<Ctxt> rows, const Ptxt& weight, Ptxt bias );
+    vector<Ctxt> matmulRE(vector<Ctxt> rows, const Ptxt& weight, Ptxt bias, int row_size, int padding );
     vector<Ctxt> matmulRE(vector<Ctxt> rows, const Ctxt& weight, int row_size, int padding );
-    vector<Ctxt> matmulRElarge(vector<Ctxt>& rows, const vector<Ptxt>& weight, const Ptxt& bias, double mask_value = 1);
-    vector<Ctxt> matmulCR(vector<Ctxt> rows, const Ptxt& weight, const Ptxt& bias );
+    vector<Ctxt> matmulRElarge(vector<Ctxt>& rows, const vector<Ptxt>& weight, Ptxt bias, double mask_value = 1);
+    vector<Ctxt> matmulCR(vector<Ctxt> rows, const Ptxt& weight, Ptxt bias );
     vector<Ctxt> matmulCR(vector<Ctxt> rows, const Ctxt& matrix);
-    vector<Ctxt> matmulCRlarge(vector<vector<Ctxt>> rows, vector<Ptxt> weights, const Ptxt& bias);
+    vector<Ctxt> matmulCRlarge(vector<vector<Ctxt>> rows, vector<Ptxt> weights, Ptxt bias);
 
     Ctxt matmulScores(vector<Ctxt> queries, const Ctxt& key);
 
@@ -126,7 +127,7 @@ public:
     vector<Ctxt> unwrapScoresExpanded(Ctxt c, int inputs_num);
     vector<Ctxt> unwrap_512_in_4_128(const Ctxt& c, int index);
 
-    vector<Ctxt> generate_containers(vector<Ctxt> inputs, const Ptxt& bias);
+    vector<Ctxt> generate_containers(vector<Ctxt> inputs, Ptxt bias);
     Ctxt wrap_containers(vector<Ctxt> inputs, int inputs_number);
 
     Ctxt mask_block(const Ctxt& c, int from, int to, double mask_value = 1);
