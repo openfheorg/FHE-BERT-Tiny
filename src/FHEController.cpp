@@ -10,8 +10,10 @@ void FHEController::generate_context(bool serialize, bool secure) {
     num_slots = 1 << 14;
 
     parameters.SetSecretKeyDist(SPARSE_TERNARY);
-    parameters.SetSecurityLevel(lbcrypto::HEStd_128_classic);
-    if (!secure) parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
+    //parameters.SetSecurityLevel(lbcrypto::HEStd_128_classic);
+    // if (!secure) parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
+    // No tables are supported for sparse secrets
+    parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
     parameters.SetNumLargeDigits(4); //d_{num} Se lo riduci, aumenti il logQP, se lo aumenti, aumenti memori
     parameters.SetRingDim(1 << 16);
     if (!secure) parameters.SetRingDim(1 << 15);
@@ -678,6 +680,10 @@ Ptxt FHEController::read_plain_expanded_input(const string& filename, int level,
     //Assumption: inputs have 128 values
     vector<double> input = read_values_from_file(filename);
 
+    // padds with 0's if the number of elements is less than 128
+    // otherwise causes relatively frequent decryption failures
+    input.resize(128);
+
     vector<double> repeated;
 
     for (int j = 0; j < 128; j++) {
@@ -1079,7 +1085,7 @@ vector<vector<Ctxt>> FHEController::unwrapRepeatedLarge(vector<Ctxt> containers,
         quantities.push_back(quantity);
     }
 
-    for (int i = 0; i < containers.size(); i++) {
+    for (int i = 0; i < quantities.size(); i++) {
         for (int j = 0; j < quantities[i]; j++) {
             vector<Ctxt> unwrapped_container = unwrap_512_in_4_128(containers[i], j);
             unwrapped_output.push_back(unwrapped_container);

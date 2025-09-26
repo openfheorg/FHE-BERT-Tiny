@@ -124,11 +124,12 @@ int main(int argc, char *argv[]) {
 
 Ctxt classifier(Ctxt input) {
     Ptxt weight = controller.read_plain_input("../weights-sst2/classifier_weight.txt", input->GetLevel());
-    Ptxt bias = controller.read_plain_expanded_input("../weights-sst2/classifier_bias.txt", input->GetLevel());
 
     Ctxt output = controller.mult(input, weight);
 
     output = controller.rotsum(output, 128, 1);
+
+    Ptxt bias = controller.read_plain_expanded_input("../weights-sst2/classifier_bias.txt", output->GetLevel());
 
     output = controller.add(output, bias);
 
@@ -152,11 +153,12 @@ Ctxt pooler(Ctxt input) {
     double tanhScale = 1 / 30.0;
 
     Ptxt weight = controller.read_plain_input("../weights-sst2/pooler_dense_weight.txt", input->GetLevel(), tanhScale);
-    Ptxt bias = controller.read_plain_repeated_input("../weights-sst2/pooler_dense_bias.txt", input->GetLevel(), tanhScale);
 
     Ctxt output = controller.mult(input, weight);
 
     output = controller.rotsum(output, 128, 128);
+
+    Ptxt bias = controller.read_plain_repeated_input("../weights-sst2/pooler_dense_bias.txt", output->GetLevel(), tanhScale);    
 
     output = controller.add(output, bias);
 
