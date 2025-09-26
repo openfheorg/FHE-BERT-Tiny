@@ -66,7 +66,7 @@ and the optional `[OPTIONS]` parameters are:
 - `--verbose` prints information during the evaluation of the network. It can be useful to study the precision of the circuit at the end of each layer
 - `--plain` adds the result of the plain circuit at the end of the FHE evaluation
 
-To run the plaintext version got to `src` and run the following (replace the string as desired)
+To run the plaintext version, cd to `src` and run the following (replace the string as desired):
 
 ```
 python3 python/PlainCircuit.py "Dune part 2 was a mesmerizing experience, movie of the year?"
