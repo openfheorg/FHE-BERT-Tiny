@@ -477,75 +477,9 @@ Ctxt FHEController::bootstrap(const Ctxt &c, int precision, bool timing) {
     return res;
 }
 
-Ctxt FHEController::relu(const Ctxt &c, double scale, bool timing) {
-    auto start = start_time();
-
-    /*
-     * Max min
-     */
-    Ptxt result;
-    context->Decrypt(key_pair.secretKey, c, &result);
-    vector<double> v = result->GetRealPackedValue();
-
-    //cout << "min: " << *min_element(v.begin(), v.end()) << ", max: " << *max_element(v.begin(), v.end()) << endl;
-    /*
-     * Max min
-     */
-
-    Ctxt res = context->EvalChebyshevFunction([scale](double x) -> double { if (x < 0) return 0; else return (1 / scale) * x; }, c,
-                                              -1,
-                                              1, relu_degree);
-
-    if (timing) {
-        print_duration(start, "ReLU d = " + to_string(relu_degree) + " evaluation");
-    }
-
-    return res;
-}
-
-Ctxt FHEController::relu_wide(const Ctxt &c, double a, double b, int degree, double scale, bool timing) {
-    auto start = start_time();
-
-    /*
-     * Max min
-     */
-    Ptxt result;
-    context->Decrypt(key_pair.secretKey, c, &result);
-    vector<double> v = result->GetRealPackedValue();
-
-    //cout << "min: " << *min_element(v.begin(), v.end()) << ", max: " << *max_element(v.begin(), v.end()) << endl;
-    /*
-     * Max min
-     */
-
-    Ctxt res = context->EvalChebyshevFunction([scale](double x) -> double { if (x < 0) return 0; else return (1 / scale) * x; }, c,
-                                              a,
-                                              b, degree);
-    if (timing) {
-        print_duration(start, "ReLU d = " + to_string(degree) + " evaluation");
-    }
-
-    return res;
-}
-
-
 /*
  * I/O
  */
-
-Ctxt FHEController::read_input(const string& filename, double scale) {
-    vector<double> input = read_values_from_file(filename);
-
-    int size = static_cast<int>(input.size());
-
-    if (scale != 1) {
-        for (int i = 0; i < size; i++) {
-            input[i] = input[i] * scale;
-        }
-    }
-
-    return context->Encrypt(key_pair.publicKey, context->MakeCKKSPackedPlaintext(input, 1, circuit_depth - 10, nullptr, num_slots));
-}
 
 Ptxt FHEController::read_plain_input(const string& filename, int level, double scale) {
     vector<double> input = read_values_from_file(filename);
@@ -561,29 +495,6 @@ Ptxt FHEController::read_plain_input(const string& filename, int level, double s
     return context->MakeCKKSPackedPlaintext(input, 1, level, nullptr, num_slots);
 }
 
-Ctxt FHEController::read_repeated_input(const string& filename, double scale) {
-    //Assumption: inputs have 128 values
-    vector<double> input = read_values_from_file(filename);
-
-    vector<double> repeated;
-
-    for (int j = 0; j < 128; j++) {
-        for (int i = 0; i < 128; i++) {
-            repeated.push_back(input[i]);
-        }
-    }
-
-    int size = static_cast<int>(input.size());
-
-    if (scale != 1) {
-        for (int i = 0; i < size; i++) {
-            input[i] = input[i] * scale;
-        }
-    }
-
-    return context->Encrypt(key_pair.publicKey, context->MakeCKKSPackedPlaintext(input, 1, 0, nullptr, num_slots));
-}
-
 Ptxt FHEController::read_plain_repeated_input(const string& filename, int level, double scale) {
     //Assumption: inputs have 128 values
     vector<double> input = read_values_from_file(filename);
@@ -592,29 +503,6 @@ Ptxt FHEController::read_plain_repeated_input(const string& filename, int level,
 
     for (int j = 0; j < 128; j++) {
         for (int i = 0; i < 128; i++) {
-            repeated.push_back(input[i]);
-        }
-    }
-
-    int size = static_cast<int>(repeated.size());
-
-    if (scale != 1) {
-        for (int i = 0; i < size; i++) {
-            repeated[i] = repeated[i] * scale;
-        }
-    }
-
-    return context->MakeCKKSPackedPlaintext(repeated, 1, level, nullptr, num_slots);
-}
-
-Ptxt FHEController::read_plain_repeated_512_input(const string& filename, int level, double scale) {
-    //Assumption: inputs have 128 values
-    vector<double> input = read_values_from_file(filename);
-
-    vector<double> repeated;
-
-    for (int j = 0; j < 32; j++) {
-        for (int i = 0; i < 512; i++) {
             repeated.push_back(input[i]);
         }
     }
@@ -788,44 +676,6 @@ void FHEController::print_expanded(const Ctxt &c, int slots, int expansion_facto
     cout << endl;
 }
 
-void FHEController::print_padded(const Ctxt &c, int slots, int padding, string prefix) {
-    if (slots == 0) {
-        slots = num_slots;
-    }
-
-    cout << prefix;
-
-    Ptxt result;
-    context->Decrypt(key_pair.secretKey, c, &result);
-    result->SetSlots(num_slots);
-    vector<double> v = result->GetRealPackedValue();
-
-    cout << setprecision(10) << fixed;
-    cout << "[ ";
-
-    for (int i = 0; i < slots * padding; i += padding) {
-        string segno = "";
-        if (v[i] > 0) {
-            segno = " ";
-        } else {
-            segno = "-";
-            v[i] = -v[i];
-        }
-
-
-        if (i == slots - 1) {
-            cout << segno << v[i] << " ]";
-        } else {
-            if (abs(v[i]) < 0.00000001)
-                cout << " 0.000" << ", ";
-            else
-                cout << segno << v[i] << ", ";
-        }
-    }
-
-    cout << endl;
-}
-
 void FHEController::print_min_max(const Ctxt &c) {
     Ptxt result;
     context->Decrypt(key_pair.secretKey, c, &result);
@@ -840,16 +690,6 @@ Ctxt FHEController::rotsum(const Ctxt &in, int slots, int padding) {
 
     for (int i = 0; i < log2(slots); i++) {
         result = add(result, context->EvalRotate(result, padding * pow(2, i)));
-    }
-
-    return result;
-}
-
-Ctxt FHEController::rotsum_padded(const Ctxt &in, int slots) {
-    Ctxt result = in->Clone();
-
-    for (int i = 0; i < log2(slots); i++) {
-        result = add(result, context->EvalRotate(result, slots * pow(2, i)));
     }
 
     return result;

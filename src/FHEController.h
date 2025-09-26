@@ -81,31 +81,23 @@ public:
     Ctxt rotate(const Ctxt& c, int index);
     Ctxt bootstrap(const Ctxt& c, bool timing = false);
     Ctxt bootstrap(const Ctxt& c, int precision, bool timing = false);
-    Ctxt relu(const Ctxt& c, double scale, bool timing = false);
-    Ctxt relu_wide(const Ctxt& c, double a, double b, int degree, double scale, bool timing = false);
 
     /*
      * I/O
      */
-    Ctxt read_input(const string& filename, double scale = 1);
-    Ctxt read_repeated_input(const string& filename, double scale = 1);
     Ctxt read_expanded_input(const string& filename, double scale = 1);
 
     Ptxt read_plain_input(const string& filename, int level = 0, double scale = 1);
-    //Ptxt read_plain_512_input(const string& filename, int level = 0, double scale = 1);
     Ptxt read_plain_repeated_input(const string& filename, int level = 0, double scale = 1);
-    Ptxt read_plain_repeated_512_input(const string& filename, int level = 0, double scale = 1);
     Ptxt read_plain_expanded_input(const string& filename, int level = 0, double scale = 1);
     Ptxt read_plain_expanded_input(const string& filename, int level, double scale, int num_inputs);
 
 
     void print(const Ctxt& c, int slots = 0, string prefix = "");
-    void print_padded(const Ctxt& c, int slots = 0, int padding = 1, string prefix = "");
     void print_expanded(const Ctxt& c, int slots = 0, int expansion_factor = 1, string prefix = "");
     void print_min_max(const Ctxt& c);
 
     Ctxt rotsum(const Ctxt &in, int slots, int padding);
-    Ctxt rotsum_padded(const Ctxt &in, int slots);
 
     Ctxt repeat(const Ctxt &in, int slots);
     Ctxt repeat(const Ctxt &in, int slots, int padding);
@@ -150,7 +142,6 @@ public:
     vector<Ctxt> load_vector(string filename);
     Ctxt load_ciphertext(string filename);
 
-    int relu_degree = 119;
     string parameters_folder = "keys";
 
 private:

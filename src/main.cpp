@@ -282,7 +282,7 @@ Ctxt encoder2(vector<Ctxt> inputs) {
         output[i] = controller.bootstrap(output[i]);
     }
 
-    vector<vector<Ctxt>> unwrappedLargeOutput = controller.unwrapRepeatedLarge(output, output.size());
+    vector<vector<Ctxt>> unwrappedLargeOutput = controller.unwrapRepeatedLarge(output, inputs.size());
 
     if (verbose) cout << "The evaluation of Intermediate took: " << (duration_cast<milliseconds>( high_resolution_clock::now() - start)).count() / 1000.0 << " seconds." << endl;
     if (verbose) controller.print(unwrappedLargeOutput[0][0], 128, "Intermediate (Containers)");
