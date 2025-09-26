@@ -876,8 +876,9 @@ Ctxt FHEController::repeat(const Ctxt &in, int slots, int padding) {
 }
 
 vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, Ptxt bias) {
-    vector<Ctxt> columns;
+    vector<Ctxt> columns(rows.size());
 
+#pragma omp parallel for
     for (int i = 0; i < rows.size(); i++) {
         Ctxt m = mult(rows[i], weight);
 
@@ -885,15 +886,16 @@ vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, Ptxt
 
         if (bias != nullptr) m = add(m, bias);
 
-        columns.push_back(m);
+        columns[i] = m;
     }
 
     return columns;
 }
 
 vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, Ptxt bias, int row_size, int padding) {
-    vector<Ctxt> columns;
+    vector<Ctxt> columns(rows.size());
 
+#pragma omp parallel for
     for (int i = 0; i < rows.size(); i++) {
         Ctxt m = mult(rows[i], weight);
 
@@ -901,29 +903,31 @@ vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ptxt &weight, Ptxt
 
         if (bias != nullptr) m = add(m, bias);
 
-        columns.push_back(m);
+        columns[i] = m;
     }
 
     return columns;
 }
 
 vector<Ctxt> FHEController::matmulRE(vector<Ctxt> rows, const Ctxt &weight, int row_size, int padding) {
-    vector<Ctxt> columns;
+    vector<Ctxt> columns(rows.size());
 
+#pragma omp parallel for       
     for (int i = 0; i < rows.size(); i++) {
         Ctxt m = mult(rows[i], weight);
 
         m = rotsum(m, row_size, padding);
 
-        columns.push_back(m);
+        columns[i] = m;
     }
 
     return columns;
 }
 
 vector<Ctxt> FHEController::matmulRElarge(vector<Ctxt>& inputs, const vector<Ptxt> &weights, Ptxt bias, double mask_val) {
-    vector<Ctxt> densed;
+    vector<Ctxt> densed(inputs.size());
 
+#pragma omp parallel for    
     for (int i = 0; i < inputs.size(); i++) {
         Ctxt i_th_result;
         for (int j = weights.size() - 1; j >= 0; j--) {
@@ -946,29 +950,31 @@ vector<Ctxt> FHEController::matmulRElarge(vector<Ctxt>& inputs, const vector<Ptx
 
         i_th_result = add(i_th_result, bias);
 
-        densed.push_back(i_th_result);
+        densed[i] = i_th_result;
     }
 
     return densed;
 }
 
 vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ctxt& matrix) {
-    vector<Ctxt> columns;
+    vector<Ctxt> columns(rows.size());
 
+#pragma omp parallel for       
     for (int i = 0; i < rows.size(); i++) {
         Ctxt m = mult(rows[i], matrix);
 
         m = rotsum(m, 64, 1);
 
-        columns.push_back(m);
+        columns[i] = m;
     }
 
     return columns;
 }
 
 vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ptxt& weight, Ptxt bias) {
-    vector<Ctxt> columns;
+    vector<Ctxt> columns(rows.size());
 
+#pragma omp parallel for      
     for (int i = 0; i < rows.size(); i++) {
         Ctxt m = mult(rows[i], weight);
 
@@ -976,15 +982,16 @@ vector<Ctxt> FHEController::matmulCR(vector<Ctxt> rows, const Ptxt& weight, Ptxt
 
         if (bias != nullptr) m = add(m, bias);
 
-        columns.push_back(m);
+        columns[i] = m;
     }
 
     return columns;
 }
 
 vector<Ctxt> FHEController::matmulCRlarge(vector<vector<Ctxt>> rows, vector<Ptxt> weights, Ptxt bias) {
-    vector<Ctxt> output;
+    vector<Ctxt> output(rows.size());
 
+#pragma omp parallel for        
     for (int i = 0; i < rows.size(); i++) {
         //Qua sotto posso fare prima add-many e poi un solo rotsum mi sa:)
         /*
@@ -1006,7 +1013,7 @@ vector<Ctxt> FHEController::matmulCRlarge(vector<vector<Ctxt>> rows, vector<Ptxt
 
         if (bias != nullptr) res = add(res, bias);
 
-        output.push_back(res);
+        output[i] = res;
     }
 
     return output;
@@ -1031,10 +1038,10 @@ Ctxt FHEController::matmulScores(vector<Ctxt> queries, const Ctxt &key) {
 }
 
 Ctxt FHEController::wrapUpRepeated(vector<Ctxt> vectors) {
-    vector<Ctxt> masked;
+    vector<Ctxt> masked(vectors.size());
 
     for (int i = 0; i < vectors.size(); i++) {
-        masked.push_back(mask_block(vectors[i], 128 * i, 128 * (i + 1), 1));
+        masked[i] = mask_block(vectors[i], 128 * i, 128 * (i + 1), 1);
     }
 
     return context->EvalAddMany(masked);
@@ -1057,24 +1064,31 @@ Ctxt FHEController::wrapUpExpanded(vector<Ctxt> vectors) {
 }
 
 vector<Ctxt> FHEController::unwrapExpanded(Ctxt c, int inputs_num) {
-    vector<Ctxt> result;
+    vector<Ctxt> result(inputs_num);
 
+    // cannot parallelize here as c gets updated    
     for (int i = 0; i < inputs_num; i++) {
-        Ctxt out = mask_mod_n(c, 128, 0,inputs_num * 128);
+        result[i] = c;
+        if (i < inputs_num - 1) c = rotate(c, 1);
+    }
+
+
+#pragma omp parallel for        
+    for (int i = 0; i < inputs_num; i++) {
+        Ctxt out = mask_mod_n(result[i], 128, 0,inputs_num * 128);
         out = repeat(out, 128);
 
-
-        if (i < inputs_num - 1) c = rotate(c, 1);
-
-        result.push_back(out);
+        result[i] = out;
     }
+
 
     return result;
 }
 
 vector<vector<Ctxt>> FHEController::unwrapRepeatedLarge(vector<Ctxt> containers, int input_number) {
-    vector<vector<Ctxt>> unwrapped_output;
     vector<int> quantities;
+
+    int vecSize = 0;
 
     for (int i = 0; i < input_number / 32.0; i++) {
         int quantity = 32;
@@ -1082,32 +1096,43 @@ vector<vector<Ctxt>> FHEController::unwrapRepeatedLarge(vector<Ctxt> containers,
             quantity = input_number - (i * 32);
         }
 
+        vecSize += quantity;
         quantities.push_back(quantity);
     }
 
+    vector<vector<Ctxt>> unwrapped_output(vecSize);
+  
+    int sizeBefore = 0;
     for (int i = 0; i < quantities.size(); i++) {
+#pragma omp parallel for         
         for (int j = 0; j < quantities[i]; j++) {
-            vector<Ctxt> unwrapped_container = unwrap_512_in_4_128(containers[i], j);
-            unwrapped_output.push_back(unwrapped_container);
+             unwrapped_output[sizeBefore + j] = unwrap_512_in_4_128(containers[i], j);
         }
+        sizeBefore += quantities[i];  
     }
 
     return unwrapped_output;
 }
 
 vector<Ctxt> FHEController::unwrapScoresExpanded(Ctxt c, int inputs_num) {
-    vector<Ctxt> result;
+    vector<Ctxt> result(inputs_num);
 
+// cannot parallelize here as c gets updated    
     for (int i = 0; i < inputs_num; i++) {
-        Ctxt i_th_1 = mask_mod_n(c, 128, 0,inputs_num * 128);
-        Ctxt i_th_2 = mask_mod_n(c, 128, 64, inputs_num * 128);
+        result[i] = c;
+        if (i < inputs_num - 1) c = rotate(c, 1);
+    }
+
+#pragma omp parallel for      
+    for (int i = 0; i < inputs_num; i++) {
+        Ctxt i_th_1 = mask_mod_n(result[i], 128, 0,inputs_num * 128);
+        Ctxt i_th_2 = mask_mod_n(result[i], 128, 64, inputs_num * 128);
         i_th_1 = repeat(i_th_1, 64);
         i_th_2 = repeat(i_th_2, 64);
 
-        if (i < inputs_num - 1) c = rotate(c, 1);
-
-        result.push_back(add(i_th_1, i_th_2));
+        result[i] = add(i_th_1, i_th_2);
     }
+
 
     return result;
 }
