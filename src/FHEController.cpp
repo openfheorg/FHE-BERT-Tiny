@@ -545,6 +545,10 @@ Ptxt FHEController::read_plain_expanded_input(const string& filename, int level,
     //Assumption: inputs have 128 values
     vector<double> input = read_values_from_file(filename);
 
+    // padds with 0's if the number of elements is less than 128
+    // otherwise causes relatively frequent decryption failures
+    input.resize(128);    
+
     vector<double> repeated;
 
     for (int j = 0; j < 128; j++) {
@@ -567,10 +571,6 @@ Ptxt FHEController::read_plain_expanded_input(const string& filename, int level,
 Ptxt FHEController::read_plain_expanded_input(const string& filename, int level, double scale, int num_inputs) {
     //Assumption: inputs have 128 values
     vector<double> input = read_values_from_file(filename);
-
-    // padds with 0's if the number of elements is less than 128
-    // otherwise causes relatively frequent decryption failures
-    input.resize(128);
 
     vector<double> repeated;
 
