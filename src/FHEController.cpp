@@ -9,30 +9,32 @@ void FHEController::generate_context(bool serialize, bool secure) {
 
     num_slots = 1 << 14;
 
-    parameters.SetSecretKeyDist(SPARSE_TERNARY);
-    //parameters.SetSecurityLevel(lbcrypto::HEStd_128_classic);
-    // if (!secure) parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
-    // No tables are supported for sparse secrets
-    parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
-    parameters.SetNumLargeDigits(4); //d_{num} Se lo riduci, aumenti il logQP, se lo aumenti, aumenti memori
-    parameters.SetRingDim(1 << 16);
-    if (!secure) parameters.SetRingDim(1 << 15);
-    parameters.SetBatchSize(num_slots);
+    uint32_t levelsUsedBeforeBootstrap = 12;
+    level_budget = {4, 4};
 
-    level_budget = {3, 3};
+    if (secure) {
+        parameters.SetSecurityLevel(lbcrypto::HEStd_128_classic);
+        parameters.SetSecretKeyDist(UNIFORM_TERNARY);
+        parameters.SetRingDim(1 << 17);
+       circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(level_budget, UNIFORM_TERNARY);
+    } else {
+        parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
+        parameters.SetSecretKeyDist(SPARSE_TERNARY);
+        parameters.SetNumLargeDigits(4); //d_{num} Se lo riduci, aumenti il logQP, se lo aumenti, aumenti memori
+        parameters.SetRingDim(1 << 15);
+        circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(level_budget, SPARSE_TERNARY);
+    }
+
+    parameters.SetBatchSize(num_slots);
 
     ScalingTechnique rescaleTech = FLEXIBLEAUTO;
 
-    int dcrtBits               = 53;
+    int dcrtBits               = 59;
     int firstMod               = 60;
 
     parameters.SetScalingModSize(dcrtBits);
     parameters.SetScalingTechnique(rescaleTech);
     parameters.SetFirstModSize(firstMod);
-
-    uint32_t levelsUsedBeforeBootstrap = 12;
-
-    circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(level_budget, SPARSE_TERNARY);
 
     cout << endl << "Ciphertexts depth: " << circuit_depth << ", available multiplications: " << levelsUsedBeforeBootstrap - 2 << endl;
 
@@ -70,98 +72,6 @@ void FHEController::generate_context(bool serialize, bool secure) {
         multKeyFile.close();
     }
     else {
-        cerr << "Error serializing EvalMult keys in \"" << "../" + parameters_folder + "/mult-keys.txt" << "\"" << endl;
-        exit(1);
-    }
-
-    if (!Serial::SerializeToFile("../" + parameters_folder + "/crypto-context.txt", context, SerType::BINARY)) {
-        cerr << "Error writing serialization of the crypto context to crypto-context.txt" << endl;
-    } else {
-        cout << "Crypto Context have been serialized" << std::endl;
-    }
-
-    if (!Serial::SerializeToFile("../" + parameters_folder + "/public-key.txt", key_pair.publicKey, SerType::BINARY)) {
-        cerr << "Error writing serialization of public key to public-key.txt" << endl;
-    } else {
-        cout << "Public Key has been serialized" << std::endl;
-    }
-
-    if (!Serial::SerializeToFile("../" + parameters_folder + "/secret-key.txt", key_pair.secretKey, SerType::BINARY)) {
-        cerr << "Error writing serialization of public key to secret-key.txt" << endl;
-    } else {
-        cout << "Secret Key has been serialized" << std::endl;
-    }
-}
-
-void FHEController::generate_context(int log_ring, int log_scale, int log_primes, int digits_hks, int cts_levels,
-                                     int stc_levels, int relu_deg, bool serialize) {
-
-    CCParams<CryptoContextCKKSRNS> parameters;
-
-    num_slots = 1 << 14;
-
-    parameters.SetSecretKeyDist(SPARSE_TERNARY);
-    //parameters.SetSecurityLevel(lbcrypto::HEStd_128_classic);
-    parameters.SetSecurityLevel(lbcrypto::HEStd_NotSet);
-    parameters.SetNumLargeDigits(digits_hks);
-    parameters.SetRingDim(1 << log_ring);
-    parameters.SetBatchSize(num_slots);
-
-    level_budget = vector<uint32_t>();
-
-    level_budget.push_back(cts_levels);
-    level_budget.push_back(stc_levels);
-
-    int dcrtBits = log_primes;
-    int firstMod = log_scale;
-
-    parameters.SetScalingModSize(dcrtBits);
-    parameters.SetScalingTechnique(FLEXIBLEAUTO);
-    parameters.SetFirstModSize(firstMod);
-
-    uint32_t approxBootstrapDepth = 4 + 4; //During EvalRaise, Chebyshev, DoubleAngle
-
-    uint32_t levelsUsedBeforeBootstrap = 12;
-
-    circuit_depth = levelsUsedBeforeBootstrap +
-                    FHECKKSRNS::GetBootstrapDepth(approxBootstrapDepth, level_budget, SPARSE_TERNARY);
-
-    cout << endl << "Ciphertexts depth: " << circuit_depth << ", available multiplications: "
-         << levelsUsedBeforeBootstrap - 2 << endl;
-
-    parameters.SetMultiplicativeDepth(circuit_depth);
-
-    context = GenCryptoContext(parameters);
-
-    cout << "Context built, generating keys..." << endl;
-
-    context->Enable(PKE);
-    context->Enable(KEYSWITCH);
-    context->Enable(LEVELEDSHE);
-    context->Enable(ADVANCEDSHE);
-    context->Enable(FHE);
-
-    key_pair = context->KeyGen();
-
-    context->EvalMultKeyGen(key_pair.secretKey);
-
-    cout << "Generated." << endl;
-
-    if (!serialize) {
-        return;
-    }
-
-    cout << "Now serializing keys ..." << endl;
-
-    ofstream multKeyFile("../" + parameters_folder + "/mult-keys.txt", ios::out | ios::binary);
-    if (multKeyFile.is_open()) {
-        if (!context->SerializeEvalMultKey(multKeyFile, SerType::BINARY)) {
-            cerr << "Error writing EvalMult keys" << std::endl;
-            exit(1);
-        }
-        cout << "EvalMult keys have been serialized" << std::endl;
-        multKeyFile.close();
-    } else {
         cerr << "Error serializing EvalMult keys in \"" << "../" + parameters_folder + "/mult-keys.txt" << "\"" << endl;
         exit(1);
     }
@@ -223,15 +133,16 @@ void FHEController::load_context(bool verbose) {
         exit(1);
     }
 
-    level_budget = {3, 3};
+    level_budget = {4, 4};
 
     if (verbose) cout << "CtoS: " << level_budget[0] << ", StoC: " << level_budget[1] << endl;
 
-    uint32_t approxBootstrapDepth = 8;
-
     uint32_t levelsUsedBeforeBootstrap = 12;
 
-    circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(approxBootstrapDepth, level_budget, SPARSE_TERNARY);
+    const auto cryptoParams =
+        std::dynamic_pointer_cast<CryptoParametersRNS>(context->GetCryptoParameters());
+
+    circuit_depth = levelsUsedBeforeBootstrap + FHECKKSRNS::GetBootstrapDepth(level_budget, cryptoParams->GetSecretKeyDist());
 
     if (verbose) cout << "Circuit depth: " << circuit_depth << ", available multiplications: " << levelsUsedBeforeBootstrap - 2 << endl;
 
